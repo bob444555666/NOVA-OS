@@ -8,6 +8,8 @@ This directory documents the independent-kernel track. The Linux-based NOVA Desk
 - The kernel writes diagnostics to the COM1 serial port.
 - It can draw a basic framebuffer preview when Limine supplies a compatible framebuffer.
 - The kernel now includes an allocation-free interactive serial monitor with `help`, `about`, `version`, `clear`, and `halt` commands.
+- Limine's real memory-map response is now requested and parsed at boot. Only page-aligned `USABLE` entries are released to the frame allocator; all other entry types remain reserved.
+- The boot path logs memory-map and allocator counts, then performs a one-frame allocate/free smoke check. The bitmap currently manages physical addresses below 32 GiB; higher memory is explicitly reported as unmanaged.
 - The physical frame allocator has host-side tests for usable/reserved frames, freeing/reuse, invalid frees, and bitmap capacity. Run them with `bash scripts/test-memory.sh`.
 
 This is an early kernel monitor, **not** a full operating system. The serial monitor is for development and is not a substitute for keyboard/mouse support or a graphical shell.
@@ -18,7 +20,7 @@ The kernel must be advanced in small, testable stages. Each stage should be cove
 
 1. **Boot and diagnostics** — boot protocol validation, serial logging, panic handling, QEMU BIOS and UEFI smoke tests.
 2. **CPU foundations** — GDT, IDT, exception handlers, APIC/PIC setup, timer interrupts, CPU feature detection.
-3. **Memory management** — parse Limine memory map, physical page allocator, virtual address-space management, kernel heap, guard pages.
+3. **Memory management** — [initial step implemented] parse Limine memory map and initialize physical page allocator; next: virtual address-space management, kernel heap, guard pages.
 4. **Input and display** — PS/2 keyboard as a first compatibility path, USB xHCI/HID later, framebuffer console, cursor, event queue.
 5. **Processes and syscalls** — privilege separation, context switching, scheduler, user-mode execution, syscall ABI, ELF loader.
 6. **Storage and filesystems** — block-device abstraction, AHCI/NVMe drivers, read-only FAT support for boot media, then a journaled writable filesystem.
@@ -37,4 +39,4 @@ The kernel must be advanced in small, testable stages. Each stage should be cove
 
 ## Near-term next milestone
 
-The allocator primitives are implemented and have host-side tests, but they are not yet initialized from Limine's real memory map and must not be used for live physical allocations yet. The next milestone is wiring the real boot memory map into a safe allocator, then adding a testable interrupt/exception layer. These are prerequisites for safe multitasking, user programs, storage, networking and a real graphical desktop.
+The allocator is now initialized from Limine's real memory map and used for a boot-time allocate/free smoke check. It only manages the first 32 GiB of physical address space; a larger or sparse-memory-aware allocator is still needed for systems whose usable RAM lies beyond that cap. The next milestone is a tested IDT and exception/interrupt layer. The kernel still has no working PS/2/USB input, storage/filesystem, process scheduler, user-mode programs, networking, or interactive graphical desktop.
