@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Welcome to NOVA
+Comment=Start exploring your NOVA desktop
+Exec=xfce4-about
+Icon=computer
+Terminal=false
+Categories=System;
