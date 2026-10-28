@@ -7,7 +7,8 @@ This directory documents the independent-kernel track. The Linux-based NOVA Desk
 - Limine boots the x86-64 Rust kernel.
 - The kernel writes diagnostics to the COM1 serial port.
 - It can draw a basic framebuffer preview when Limine supplies a compatible framebuffer.
-- The kernel now includes an allocation-free interactive serial monitor with `help`, `about`, `version`, `clear`, and `halt` commands.
+- The kernel installs its own 256-entry x86-64 IDT with a fail-stop handler. Hardware interrupts intentionally remain disabled until PIC/APIC routing and interrupt-safe handlers are implemented.
+- The kernel includes an allocation-free interactive serial monitor with `help`, `about`, `version`, `clear`, and `halt` commands.
 - Limine's real memory-map response is now requested and parsed at boot. Only page-aligned `USABLE` entries are released to the frame allocator; all other entry types remain reserved.
 - The boot path logs memory-map and allocator counts, then performs a one-frame allocate/free smoke check. The bitmap currently manages physical addresses below 32 GiB; higher memory is explicitly reported as unmanaged.
 - The physical frame allocator has host-side tests for usable/reserved frames, freeing/reuse, invalid frees, and bitmap capacity. Run them with `bash scripts/test-memory.sh`.
@@ -19,7 +20,7 @@ This is an early kernel monitor, **not** a full operating system. The serial mon
 The kernel must be advanced in small, testable stages. Each stage should be covered by automated QEMU tests before hardware claims are made.
 
 1. **Boot and diagnostics** — boot protocol validation, serial logging, panic handling, QEMU BIOS and UEFI smoke tests.
-2. **CPU foundations** — GDT, IDT, exception handlers, APIC/PIC setup, timer interrupts, CPU feature detection.
+2. **CPU foundations** — [initial step implemented] install a kernel-owned IDT and fail-stop handler; next: per-vector exception diagnostics, APIC/PIC setup, timer interrupts, CPU feature detection.
 3. **Memory management** — [initial step implemented] parse Limine memory map and initialize physical page allocator; next: virtual address-space management, kernel heap, guard pages.
 4. **Input and display** — PS/2 keyboard as a first compatibility path, USB xHCI/HID later, framebuffer console, cursor, event queue.
 5. **Processes and syscalls** — privilege separation, context switching, scheduler, user-mode execution, syscall ABI, ELF loader.
