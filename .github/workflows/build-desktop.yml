@@ -1,0 +1,53 @@
+name: Build NOVA Desktop ISO
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "nova-live/**"
+      - ".github/workflows/build-desktop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-desktop-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install live-build
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+      - name: Configure Debian Live desktop
+        working-directory: nova-live
+        run: |
+          sudo lb config \
+            --distribution trixie \
+            --architectures amd64 \
+            --binary-images iso-hybrid \
+            --debian-installer live \
+            --linux-packages "linux-image-amd64" \
+            --archive-areas "main contrib non-free non-free-firmware" \
+            --mirror-bootstrap "http://deb.debian.org/debian/" \
+            --mirror-chroot "http://deb.debian.org/debian/" \
+            --mirror-binary "http://deb.debian.org/debian/" \
+            --mirror-chroot-security "http://security.debian.org/debian-security/" \
+            --mirror-binary-security "http://security.debian.org/debian-security/" \
+            --iso-application "NOVA OS Desktop" \
+            --iso-publisher "NOVA OS Project" \
+            --iso-volume "NOVA_DESKTOP"
+      - name: Build live desktop ISO
+        working-directory: nova-live
+        run: sudo lb build
+      - name: Check ISO output
+        run: |
+          test -s nova-live/live-image-amd64.hybrid.iso
+          file nova-live/live-image-amd64.hybrid.iso
+      - name: Upload NOVA Desktop ISO
+        uses: actions/upload-artifact@v5
+        with:
+          name: nova-desktop-iso
+          path: nova-live/live-image-amd64.hybrid.iso
+          if-no-files-found: error
+          retention-days: 14
