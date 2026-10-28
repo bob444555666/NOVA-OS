@@ -15,10 +15,10 @@ Install Rust via rustup, plus `make`, `xorriso`, `curl`, and `tar`. Then run:
 bash scripts/build-iso.sh
 ```
 
-The script downloads a pinned Limine release into `build/` and creates `build/nova-os.iso`. A network connection is needed on the first build.
+The script downloads a pinned Limine binary release into `build/` and creates `build/nova-os.iso`. A network connection is needed on the first build. GitHub Actions runs the same ISO build and, when it succeeds, uploads an artifact named `nova-os-iso` on the Actions run page.
 
 ## Test safely
-1. Start with QEMU or another virtual machine and test the ISO there.
+1. Download `nova-os-iso` from a successful run at [GitHub Actions](https://github.com/bob444555666/NOVA-OS/actions).\n2. Start with QEMU or another virtual machine and test the ISO there.
 2. For USB testing, write the ISO to a spare USB drive using a trusted imaging utility. **Writing an image erases the selected drive.**
 3. Boot using your firmware's one-time boot menu. Installation to an internal drive is not implemented.
 
