@@ -44,21 +44,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
-          OVMF_VARS_TEMPLATE=/usr/share/OVMF/OVMF_VARS.fd
+          OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
+          OVMF_VARS_TEMPLATE=/usr/share/OVMF/OVMF_VARS_4M.fd
           if [[ ! -f "$OVMF_CODE" || ! -f "$OVMF_VARS_TEMPLATE" ]]; then
             echo "OVMF UEFI firmware files were not found." >&2
-            find /usr/share -iname '*OVMF*' -maxdepth 4 -type f || true
+            find /usr/share -maxdepth 4 -iname '*OVMF*' -type f || true
             exit 1
           fi
           cp "$OVMF_VARS_TEMPLATE" build/OVMF_VARS.fd
           set +e
-          timeout 25s qemu-system-x86_64 \\
-            -machine q35 -m 256M -accel tcg \\
-            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \\
-            -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \\
-            -cdrom build/nova-os.iso -boot d \\
-            -display none -serial stdio -monitor none \\
+          timeout 25s qemu-system-x86_64 \
+            -machine q35 -m 256M -accel tcg \
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
+            -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \
+            -cdrom build/nova-os.iso -boot d \
+            -display none -serial stdio -monitor none \
             -no-reboot -no-shutdown > build/qemu-uefi-serial.log 2>&1
           qemu_status=$?
           set -e
