@@ -39,7 +39,7 @@ pub extern "C" fn _start() -> ! {
         serial_write_str("NOVA OS: bootloader did not return a framebuffer.\r\n");
     }
 
-    loop { core::hint::spin_loop(); }
+    serial_shell();
 }
 
 #[derive(Clone, Copy)]
@@ -270,7 +270,77 @@ fn serial_init() {
         outb(0x3F9, 0x00); outb(0x3FB, 0x03); outb(0x3FA, 0xC7); outb(0x3FC, 0x0B);
     }
 }
-fn serial_write_str(value: &str) { for byte in value.bytes() { unsafe { outb(0x3F8, byte); } } }
+fn serial_write_str(value: &str) { for byte in value.bytes() { serial_write_byte(byte); } }
+
+fn serial_write_byte(byte: u8) {
+    unsafe {
+        // Wait until the UART transmit holding register is empty.
+        while (inb(0x3FD) & 0x20) == 0 { core::hint::spin_loop(); }
+        outb(0x3F8, byte);
+    }
+}
+
+fn serial_read_byte() -> Option<u8> {
+    unsafe {
+        if (inb(0x3FD) & 0x01) != 0 { Some(inb(0x3F8)) } else { None }
+    }
+}
+
+// A deliberately small, allocation-free kernel monitor. This is a real command
+// loop over COM1 for debugging while the graphical input stack is developed.
+fn serial_shell() -> ! {
+    let mut line = [0u8; 80];
+    let mut len = 0usize;
+    serial_write_str("\r\nNOVA OS: interactive serial shell ready. Type help.\r\nnova> ");
+    loop {
+        if let Some(byte) = serial_read_byte() {
+            match byte {
+                b'\r' | b'\n' => {
+                    serial_write_str("\r\n");
+                    run_command(&line[..len]);
+                    len = 0;
+                    serial_write_str("nova> ");
+                }
+                8 | 127 => {
+                    if len > 0 {
+                        len -= 1;
+                        serial_write_str("\x08 \x08");
+                    }
+                }
+                32..=126 if len < line.len() => {
+                    line[len] = byte;
+                    len += 1;
+                    serial_write_byte(byte);
+                }
+                _ => {}
+            }
+        } else {
+            core::hint::spin_loop();
+        }
+    }
+}
+
+fn run_command(command: &[u8]) {
+    match command {
+        b"" => {}
+        b"help" => serial_write_str("Commands: help, about, version, clear, halt\r\n"),
+        b"about" => serial_write_str("NOVA is an experimental independent x86-64 kernel. GUI, drivers, storage and networking are not complete yet.\r\n"),
+        b"version" => serial_write_str("NOVA kernel 0.1.0 (early development)\r\n"),
+        b"clear" => serial_write_str("\x1B[2J\x1B[H"),
+        b"halt" => {
+            serial_write_str("NOVA: CPU halted. Reset the virtual machine to continue.\r\n");
+            loop { unsafe { core::arch::asm!("cli; hlt", options(nomem, nostack)); } }
+        }
+        _ => serial_write_str("Unknown command. Type help.\r\n"),
+    }
+}
+
+unsafe fn inb(port: u16) -> u8 {
+    let value: u8;
+    core::arch::asm!("in al, dx", in("dx") port, out("al") value, options(nomem, nostack, preserves_flags));
+    value
+}
+
 unsafe fn outb(port: u16, value: u8) {
     core::arch::asm!("out dx, al", in("dx") port, in("al") value, options(nomem, nostack, preserves_flags));
 }
