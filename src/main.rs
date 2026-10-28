@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod memory;
+
 use core::panic::PanicInfo;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
 
