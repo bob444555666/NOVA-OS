@@ -39,7 +39,7 @@ jobs:
           fi
           cat build/qemu-serial.log
           grep -F "NOVA OS: kernel entered." build/qemu-serial.log
-          grep -F "NOVA OS: early boot complete" build/qemu-serial.log
+          grep -F "NOVA OS: desktop rendered; input and applications are not implemented yet." build/qemu-serial.log
       - name: Boot ISO in UEFI mode and verify kernel output
         shell: bash
         run: |
@@ -68,7 +68,7 @@ jobs:
           fi
           cat build/qemu-uefi-serial.log
           grep -F "NOVA OS: kernel entered." build/qemu-uefi-serial.log
-          grep -F "NOVA OS: early boot complete" build/qemu-uefi-serial.log
+          grep -F "NOVA OS: desktop rendered; input and applications are not implemented yet." build/qemu-uefi-serial.log
       - name: Upload bootable ISO
         uses: actions/upload-artifact@v5
         with:
