@@ -54,7 +54,7 @@ pub fn initialize() {
         let table = core::ptr::addr_of_mut!(IDT);
         let mut vector = 0usize;
         while vector < IDT_ENTRIES {
-            core::ptr::write_volatile((*table).as_mut_ptr().add(vector), IdtEntry::interrupt_gate(handler));
+            core::ptr::write_volatile(table.cast::<IdtEntry>().add(vector), IdtEntry::interrupt_gate(handler));
             vector += 1;
         }
         let idtr = Idtr {
