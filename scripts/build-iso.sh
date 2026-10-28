@@ -48,7 +48,7 @@ cp "$LIMINE_DIR/BOOTX64.EFI" "$STAGING/EFI/BOOT/BOOTX64.EFI"
 xorriso -as mkisofs \
   -R -r -J \
   -b limine-bios-cd.bin \
-  -no-emul-boot -boot-load-size 4 -boot-info-table \
+  -no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus -apm-block-size 2048 \
   --efi-boot limine-uefi-cd.bin \
   -efi-boot-part --efi-boot-image --protective-msdos-label \
   "$STAGING" -o "$BUILD/nova-os.iso"
