@@ -4,27 +4,35 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="$ROOT/build"
 cd "$ROOT"
-LIMINE_VERSION="8.6.0"
-LIMINE_URL="https://github.com/limine-bootloader/limine/releases/download/v${LIMINE_VERSION}/limine-${LIMINE_VERSION}.tar.xz"
 
-command -v cargo >/dev/null || { echo "Missing cargo (install Rust via rustup)." >&2; exit 1; }
-command -v xorriso >/dev/null || { echo "Missing xorriso. Install it with your Linux package manager." >&2; exit 1; }
-command -v curl >/dev/null || { echo "Missing curl." >&2; exit 1; }
-command -v tar >/dev/null || { echo "Missing tar." >&2; exit 1; }
+# Use the official prebuilt Limine release so the ISO build does not depend
+# on rebuilding the bootloader from source.
+LIMINE_VERSION="12.9.6"
+LIMINE_URL="https://github.com/limine-bootloader/limine/releases/download/v${LIMINE_VERSION}/limine-binary.tar.xz"
+LIMINE_ARCHIVE="$BUILD/limine-binary.tar.xz"
+LIMINE_ROOT="$BUILD/limine-binary"
+
+for tool in cargo rustup xorriso curl tar; do
+  command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
+done
 
 mkdir -p "$BUILD"
-if [[ ! -d "$BUILD/limine-${LIMINE_VERSION}" ]]; then
-  curl --fail --location --retry 3 "$LIMINE_URL" -o "$BUILD/limine.tar.xz"
-  tar -xJf "$BUILD/limine.tar.xz" -C "$BUILD"
+if [[ ! -d "$LIMINE_ROOT" ]]; then
+  mkdir -p "$LIMINE_ROOT"
+  curl --fail --location --retry 3 "$LIMINE_URL" -o "$LIMINE_ARCHIVE"
+  tar -xJf "$LIMINE_ARCHIVE" -C "$LIMINE_ROOT" --strip-components=1
 fi
 
-LIMINE_DIR="$BUILD/limine-${LIMINE_VERSION}"
-if [[ ! -f "$LIMINE_DIR/limine" ]]; then
-  make -C "$LIMINE_DIR"
-fi
+LIMINE_TOOL="$(find "$LIMINE_ROOT" -type f -name limine -print -quit)"
+[[ -n "$LIMINE_TOOL" ]] || { echo "Could not find the Limine host tool in the downloaded archive." >&2; exit 1; }
+LIMINE_DIR="$(dirname "$LIMINE_TOOL")"
+
+for file in limine-bios.sys limine-bios-cd.bin limine-uefi-cd.bin; do
+  [[ -f "$LIMINE_DIR/$file" ]] || { echo "Missing Limine boot file: $file" >&2; exit 1; }
+done
 
 rustup target add x86_64-unknown-none
-cargo build --manifest-path "$ROOT/Cargo.toml" --release --target x86_64-unknown-none
+cargo build --release --target x86_64-unknown-none
 
 STAGING="$BUILD/iso-root"
 rm -rf "$STAGING"
@@ -43,5 +51,6 @@ xorriso -as mkisofs \
   -efi-boot-part --efi-boot-image --protective-msdos-label \
   "$STAGING" -o "$BUILD/nova-os.iso"
 
-"$LIMINE_DIR/limine" bios-install "$BUILD/nova-os.iso"
-echo "Built: $BUILD/nova-os.iso"
+"$LIMINE_TOOL" bios-install "$BUILD/nova-os.iso"
+test -s "$BUILD/nova-os.iso"
+echo "Built successfully: $BUILD/nova-os.iso"
