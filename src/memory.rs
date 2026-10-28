@@ -25,7 +25,8 @@ impl<'a> FrameAllocator<'a> {
             bitmap[i] = 0xFF;
             i += 1;
         }
-        Self { bitmap, frame_count: core::cmp::min(frame_count, bitmap.len().saturating_mul(8)), next_hint: 0 }
+        let bounded_frame_count = core::cmp::min(frame_count, bitmap.len().saturating_mul(8));
+        Self { bitmap, frame_count: bounded_frame_count, next_hint: 0 }
     }
 
     /// Marks a frame-index range usable. This must only be used for RAM ranges
