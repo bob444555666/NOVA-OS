@@ -8,6 +8,7 @@ This directory documents the independent-kernel track. The Linux-based NOVA Desk
 - The kernel writes diagnostics to the COM1 serial port.
 - It can draw a basic framebuffer preview when Limine supplies a compatible framebuffer.
 - The kernel now includes an allocation-free interactive serial monitor with `help`, `about`, `version`, `clear`, and `halt` commands.
+- The physical frame allocator has host-side tests for usable/reserved frames, freeing/reuse, invalid frees, and bitmap capacity. Run them with `bash scripts/test-memory.sh`.
 
 This is an early kernel monitor, **not** a full operating system. The serial monitor is for development and is not a substitute for keyboard/mouse support or a graphical shell.
 
@@ -36,4 +37,4 @@ The kernel must be advanced in small, testable stages. Each stage should be cove
 
 ## Near-term next milestone
 
-The next milestone is a testable interrupt/exception layer and memory-map-driven physical page allocator. Those are prerequisites for safe multitasking, user programs, storage, networking and a real graphical desktop.
+The allocator primitives are implemented and have host-side tests, but they are not yet initialized from Limine's real memory map and must not be used for live physical allocations yet. The next milestone is wiring the real boot memory map into a safe allocator, then adding a testable interrupt/exception layer. These are prerequisites for safe multitasking, user programs, storage, networking and a real graphical desktop.
