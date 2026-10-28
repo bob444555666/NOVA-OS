@@ -1,6 +1,10 @@
 #![no_std]
 #![no_main]
 
+mod memory;
+mod boot_memory;
+mod interrupts;
+
 use core::panic::PanicInfo;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
 
@@ -18,6 +22,38 @@ static REQUESTS_END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 pub extern "C" fn _start() -> ! {
     serial_init();
     serial_write_str("\r\nNOVA OS: kernel entered.\r\n");
+    interrupts::initialize();
+    serial_write_str("NOVA OS: kernel-owned IDT installed; hardware interrupts remain disabled.\r\n");
+    match boot_memory::initialize() {
+        Ok(stats) => {
+            serial_write_str("NOVA OS: Limine memory map integrated. Entries: ");
+            serial_write_num(stats.map_entries);
+            serial_write_str(", usable ranges: ");
+            serial_write_num(stats.usable_ranges);
+            serial_write_str(", allocator frames: ");
+            serial_write_num(stats.allocator_frames);
+            serial_write_str(", usable frames: ");
+            serial_write_num(stats.usable_frames);
+            if stats.truncated {
+                serial_write_str(" (physical memory above 32 GiB is not managed)");
+            }
+            serial_write_str(".\r\n");
+            match boot_memory::allocate_frame() {
+                Some(frame) => {
+                    serial_write_str("NOVA OS: frame allocator smoke check passed at physical address ");
+                    serial_write_num(frame as usize);
+                    serial_write_str(".\r\n");
+                    if boot_memory::free_frame(frame).is_ok() {
+                        serial_write_str("NOVA OS: smoke-check frame released.\r\n");
+                    } else {
+                        serial_write_str("NOVA OS: WARNING: could not release smoke-check frame.\r\n");
+                    }
+                }
+                None => serial_write_str("NOVA OS: WARNING: no usable physical frame was available.\r\n"),
+            }
+        }
+        Err(_) => serial_write_str("NOVA OS: ERROR: Limine memory map unavailable/invalid; frame allocation disabled.\r\n"),
+    }
 
     if let Some(response) = FRAMEBUFFER_REQUEST.get_response() {
         if let Some(fb) = response.framebuffers().next() {
@@ -39,7 +75,7 @@ pub extern "C" fn _start() -> ! {
         serial_write_str("NOVA OS: bootloader did not return a framebuffer.\r\n");
     }
 
-    loop { core::hint::spin_loop(); }
+    serial_shell();
 }
 
 #[derive(Clone, Copy)]
@@ -270,7 +306,89 @@ fn serial_init() {
         outb(0x3F9, 0x00); outb(0x3FB, 0x03); outb(0x3FA, 0xC7); outb(0x3FC, 0x0B);
     }
 }
-fn serial_write_str(value: &str) { for byte in value.bytes() { unsafe { outb(0x3F8, byte); } } }
+pub(crate) fn serial_write_str(value: &str) { for byte in value.bytes() { serial_write_byte(byte); } }
+
+fn serial_write_num(mut value: usize) {
+    let mut digits = [0u8; 20];
+    let mut len = 0usize;
+    if value == 0 { serial_write_byte(b'0'); return; }
+    while value > 0 && len < digits.len() {
+        digits[len] = b'0' + (value % 10) as u8;
+        value /= 10;
+        len += 1;
+    }
+    while len > 0 { len -= 1; serial_write_byte(digits[len]); }
+}
+
+fn serial_write_byte(byte: u8) {
+    unsafe {
+        // Wait until the UART transmit holding register is empty.
+        while (inb(0x3FD) & 0x20) == 0 { core::hint::spin_loop(); }
+        outb(0x3F8, byte);
+    }
+}
+
+fn serial_read_byte() -> Option<u8> {
+    unsafe {
+        if (inb(0x3FD) & 0x01) != 0 { Some(inb(0x3F8)) } else { None }
+    }
+}
+
+// A deliberately small, allocation-free kernel monitor. This is a real command
+// loop over COM1 for debugging while the graphical input stack is developed.
+fn serial_shell() -> ! {
+    let mut line = [0u8; 80];
+    let mut len = 0usize;
+    serial_write_str("\r\nNOVA OS: interactive serial shell ready. Type help.\r\nnova> ");
+    loop {
+        if let Some(byte) = serial_read_byte() {
+            match byte {
+                b'\r' | b'\n' => {
+                    serial_write_str("\r\n");
+                    run_command(&line[..len]);
+                    len = 0;
+                    serial_write_str("nova> ");
+                }
+                8 | 127 => {
+                    if len > 0 {
+                        len -= 1;
+                        serial_write_str("\x08 \x08");
+                    }
+                }
+                32..=126 if len < line.len() => {
+                    line[len] = byte;
+                    len += 1;
+                    serial_write_byte(byte);
+                }
+                _ => {}
+            }
+        } else {
+            core::hint::spin_loop();
+        }
+    }
+}
+
+fn run_command(command: &[u8]) {
+    match command {
+        b"" => {}
+        b"help" => serial_write_str("Commands: help, about, version, clear, halt\r\n"),
+        b"about" => serial_write_str("NOVA is an experimental independent x86-64 kernel. GUI, drivers, storage and networking are not complete yet.\r\n"),
+        b"version" => serial_write_str("NOVA kernel 0.1.0 (early development)\r\n"),
+        b"clear" => serial_write_str("\x1B[2J\x1B[H"),
+        b"halt" => {
+            serial_write_str("NOVA: CPU halted. Reset the virtual machine to continue.\r\n");
+            loop { unsafe { core::arch::asm!("cli; hlt", options(nomem, nostack)); } }
+        }
+        _ => serial_write_str("Unknown command. Type help.\r\n"),
+    }
+}
+
+unsafe fn inb(port: u16) -> u8 {
+    let value: u8;
+    core::arch::asm!("in al, dx", in("dx") port, out("al") value, options(nomem, nostack, preserves_flags));
+    value
+}
+
 unsafe fn outb(port: u16, value: u8) {
     core::arch::asm!("out dx, al", in("dx") port, in("al") value, options(nomem, nostack, preserves_flags));
 }
