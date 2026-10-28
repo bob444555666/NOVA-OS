@@ -7,8 +7,10 @@ NOVA OS is an experimental open-source operating-system project for 64-bit Intel
 - Rust `no_std` kernel targeting `x86_64-unknown-none`
 - Limine boot protocol and bootloader
 - Framebuffer discovery and a simple graphical boot screen when available
-- Serial boot diagnostics
-- ISO build script and automated build/boot check
+- Serial boot diagnostics and a development-only serial monitor
+- A kernel-owned IDT with a fail-stop handler (hardware IRQs remain disabled)
+- Limine memory-map parsing and an initial physical frame allocator
+- ISO build script and automated QEMU BIOS/UEFI boot checks
 
 ## Build (Linux)
 
@@ -27,7 +29,7 @@ The script downloads a pinned Limine binary release into `build/` and creates `b
 3. For USB testing, write the ISO to a spare USB drive using a trusted imaging utility. **Writing an image erases the selected drive.**
 4. Boot using your firmware's one-time boot menu. Installation to an internal drive is not implemented.
 
-UEFI x86-64 is the initial target. Keyboard input, storage, Wi-Fi, sound, power management, and a full desktop are not implemented yet.
+UEFI x86-64 is the initial target. This is **not yet a daily-use or complete independent OS**. Working keyboard/mouse drivers, virtual memory, scheduling, user-mode processes, storage/filesystems, networking, sound, power management, a window manager and application runtime remain unfinished. The framebuffer is currently a static boot preview, not an interactive desktop. See [`docs/INDEPENDENT_KERNEL_ROADMAP.md`](docs/INDEPENDENT_KERNEL_ROADMAP.md) for the staged engineering plan.
 
 ## Roadmap
 
