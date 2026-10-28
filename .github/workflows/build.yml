@@ -1,4 +1,4 @@
-name: Build NOVA OS
+name: Build and smoke-test NOVA OS
 
 on:
   push:
@@ -9,20 +9,38 @@ permissions:
   contents: read
 
 jobs:
-  build-iso:
+  build-and-smoke-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-none
-      - name: Install ISO build dependencies
+      - name: Install ISO and emulator dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes build-essential xorriso curl tar xz-utils
+          sudo apt-get install --yes build-essential xorriso curl tar xz-utils qemu-system-x86
       - name: Build bootable ISO
         run: bash scripts/build-iso.sh
-      - name: Upload ISO
+      - name: Boot ISO in QEMU and verify kernel output
+        shell: bash
+        run: |
+          set +e
+          timeout 20s qemu-system-x86_64 \
+            -machine q35 -m 256M -accel tcg \
+            -cdrom build/nova-os.iso -boot d \
+            -display none -serial stdio -monitor none \
+            -no-reboot -no-shutdown > build/qemu-serial.log 2>&1
+          qemu_status=$?
+          set -e
+          if [[ "$qemu_status" -ne 0 && "$qemu_status" -ne 124 ]]; then
+            cat build/qemu-serial.log
+            exit "$qemu_status"
+          fi
+          cat build/qemu-serial.log
+          grep -F "NOVA OS: kernel entered." build/qemu-serial.log
+          grep -F "NOVA OS: early boot complete" build/qemu-serial.log
+      - name: Upload bootable ISO
         uses: actions/upload-artifact@v4
         with:
           name: nova-os-iso
