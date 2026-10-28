@@ -12,7 +12,7 @@ LIMINE_URL="https://github.com/limine-bootloader/limine/releases/download/v${LIM
 LIMINE_ARCHIVE="$BUILD/limine-binary.tar.xz"
 LIMINE_ROOT="$BUILD/limine-binary"
 
-for tool in cargo rustup xorriso curl tar; do
+for tool in cargo rustup xorriso curl tar make; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 
@@ -23,8 +23,9 @@ if [[ ! -d "$LIMINE_ROOT" ]]; then
   tar -xJf "$LIMINE_ARCHIVE" -C "$LIMINE_ROOT" --strip-components=1
 fi
 
-LIMINE_TOOL="$(find "$LIMINE_ROOT" -type f -name limine -print -quit)"
-[[ -n "$LIMINE_TOOL" ]] || { echo "Could not find the Limine host tool in the downloaded archive." >&2; exit 1; }
+make -C "$LIMINE_ROOT"
+LIMINE_TOOL="$(find "$LIMINE_ROOT" -type f -name limine -perm -u+x -print -quit)"
+[[ -n "$LIMINE_TOOL" ]] || { echo "Could not build or find the Limine host tool in the downloaded archive." >&2; exit 1; }
 LIMINE_DIR="$(dirname "$LIMINE_TOOL")"
 
 for file in limine limine-bios.sys limine-bios-cd.bin limine-uefi-cd.bin BOOTX64.EFI; do
