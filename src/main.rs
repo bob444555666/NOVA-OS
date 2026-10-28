@@ -2,6 +2,7 @@
 #![no_main]
 
 mod memory;
+mod boot_memory;
 
 use core::panic::PanicInfo;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
@@ -20,6 +21,36 @@ static REQUESTS_END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 pub extern "C" fn _start() -> ! {
     serial_init();
     serial_write_str("\r\nNOVA OS: kernel entered.\r\n");
+    match boot_memory::initialize() {
+        Ok(stats) => {
+            serial_write_str("NOVA OS: Limine memory map integrated. Entries: ");
+            serial_write_num(stats.map_entries);
+            serial_write_str(", usable ranges: ");
+            serial_write_num(stats.usable_ranges);
+            serial_write_str(", allocator frames: ");
+            serial_write_num(stats.allocator_frames);
+            serial_write_str(", usable frames: ");
+            serial_write_num(stats.usable_frames);
+            if stats.truncated {
+                serial_write_str(" (physical memory above 32 GiB is not managed)");
+            }
+            serial_write_str(".\r\n");
+            match boot_memory::allocate_frame() {
+                Some(frame) => {
+                    serial_write_str("NOVA OS: frame allocator smoke check passed at physical address ");
+                    serial_write_num(frame as usize);
+                    serial_write_str(".\r\n");
+                    if boot_memory::free_frame(frame).is_ok() {
+                        serial_write_str("NOVA OS: smoke-check frame released.\r\n");
+                    } else {
+                        serial_write_str("NOVA OS: WARNING: could not release smoke-check frame.\r\n");
+                    }
+                }
+                None => serial_write_str("NOVA OS: WARNING: no usable physical frame was available.\r\n"),
+            }
+        }
+        Err(_) => serial_write_str("NOVA OS: ERROR: Limine memory map unavailable/invalid; frame allocation disabled.\r\n"),
+    }
 
     if let Some(response) = FRAMEBUFFER_REQUEST.get_response() {
         if let Some(fb) = response.framebuffers().next() {
@@ -273,6 +304,18 @@ fn serial_init() {
     }
 }
 fn serial_write_str(value: &str) { for byte in value.bytes() { serial_write_byte(byte); } }
+
+fn serial_write_num(mut value: usize) {
+    let mut digits = [0u8; 20];
+    let mut len = 0usize;
+    if value == 0 { serial_write_byte(b'0'); return; }
+    while value > 0 && len < digits.len() {
+        digits[len] = b'0' + (value % 10) as u8;
+        value /= 10;
+        len += 1;
+    }
+    while len > 0 { len -= 1; serial_write_byte(digits[len]); }
+}
 
 fn serial_write_byte(byte: u8) {
     unsafe {
