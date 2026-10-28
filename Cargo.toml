@@ -1,0 +1,18 @@
+[package]
+name = "nova-kernel"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Experimental x86-64 NOVA OS kernel"
+
+[dependencies]
+limine = "0.5"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+opt-level = "s"
