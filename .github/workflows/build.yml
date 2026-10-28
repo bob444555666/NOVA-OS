@@ -19,7 +19,7 @@ jobs:
       - name: Install ISO and emulator dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes build-essential xorriso curl tar xz-utils qemu-system-x86
+          sudo apt-get install --yes build-essential xorriso curl tar xz-utils qemu-system-x86 ovmf
       - name: Build bootable ISO
         run: bash scripts/build-iso.sh
       - name: Boot ISO in QEMU and verify kernel output
@@ -40,6 +40,35 @@ jobs:
           cat build/qemu-serial.log
           grep -F "NOVA OS: kernel entered." build/qemu-serial.log
           grep -F "NOVA OS: early boot complete" build/qemu-serial.log
+      - name: Boot ISO in UEFI mode and verify kernel output
+        shell: bash
+        run: |
+          set -euo pipefail
+          OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
+          OVMF_VARS_TEMPLATE=/usr/share/OVMF/OVMF_VARS.fd
+          if [[ ! -f "$OVMF_CODE" || ! -f "$OVMF_VARS_TEMPLATE" ]]; then
+            echo "OVMF UEFI firmware files were not found." >&2
+            find /usr/share -iname '*OVMF*' -maxdepth 4 -type f || true
+            exit 1
+          fi
+          cp "$OVMF_VARS_TEMPLATE" build/OVMF_VARS.fd
+          set +e
+          timeout 25s qemu-system-x86_64 \\
+            -machine q35 -m 256M -accel tcg \\
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \\
+            -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \\
+            -cdrom build/nova-os.iso -boot d \\
+            -display none -serial stdio -monitor none \\
+            -no-reboot -no-shutdown > build/qemu-uefi-serial.log 2>&1
+          qemu_status=$?
+          set -e
+          if [[ "$qemu_status" -ne 0 && "$qemu_status" -ne 124 ]]; then
+            cat build/qemu-uefi-serial.log
+            exit "$qemu_status"
+          fi
+          cat build/qemu-uefi-serial.log
+          grep -F "NOVA OS: kernel entered." build/qemu-uefi-serial.log
+          grep -F "NOVA OS: early boot complete" build/qemu-uefi-serial.log
       - name: Upload bootable ISO
         uses: actions/upload-artifact@v5
         with:
