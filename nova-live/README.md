@@ -1,41 +1,58 @@
 # NOVA OS Desktop Edition
 
-This is the **usable desktop edition** build path. It is separate from the experimental Rust kernel prototype at the repository root, because the current bare-metal kernel does not yet have input drivers, a filesystem, networking, or a browser runtime.
+NOVA Desktop is the practical, bootable desktop edition of NOVA OS. It uses Debian's Linux kernel and hardware ecosystem under a NOVA-branded desktop, rather than claiming the small experimental Rust kernel already implements every driver and application subsystem.
 
-NOVA Desktop is built as a Debian Live system with the XFCE desktop, a window manager, file manager, settings tools, network manager, audio tools, and browsers. This gives the project a real operating-system foundation while we develop NOVA branding and custom components.
+The goal is a cohesive Windows/macOS-inspired experience with Linux flexibility: a desktop and window manager, application menu, taskbar/panel, file manager, settings, network and audio tools, and a set of real applications.
 
-## Build
+## Included applications and system features
 
-On Debian or Ubuntu with root/sudo access:
+- XFCE desktop, window manager, panel, app menu, notifications, power settings, and file manager
+- Firefox ESR and Chromium web browsers
+- LibreOffice Writer, Calc, and Impress for documents, spreadsheets, and presentations
+- VLC media player and GIMP image editor
+- Archive manager and PDF viewer
+- NetworkManager, Wi-Fi UI, Bluetooth tools, PipeWire audio, and volume controls
+- Printer support and disk utilities
+- Common Wi-Fi firmware packages for supported hardware
+- Git, terminal, Flatpak support, and NOVA-branded wallpaper/desktop shortcuts
+
+Hardware compatibility depends on the machine and available firmware; no Linux distribution can promise every Wi-Fi adapter, graphics chip, fingerprint reader, or sleep/power feature works on every laptop without testing.
+
+## Build the ISO
+
+On Debian or Ubuntu with root/sudo access, install the tools and build from this directory:
 
 ```sh
 sudo apt-get update
-sudo apt-get install --yes live-build
+sudo apt-get install --yes live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
 cd nova-live
 sudo lb config \
   --distribution trixie \
   --architectures amd64 \
   --binary-images iso-hybrid \
   --debian-installer live \
+  --linux-packages "linux-image-amd64" \
   --archive-areas "main contrib non-free non-free-firmware" \
+  --mirror-bootstrap "http://deb.debian.org/debian/" \
+  --mirror-chroot "http://deb.debian.org/debian/" \
+  --mirror-binary "http://deb.debian.org/debian/" \
+  --mirror-chroot-security "http://security.debian.org/debian-security/" \
+  --mirror-binary-security "http://security.debian.org/debian-security/" \
   --iso-application "NOVA OS Desktop" \
   --iso-publisher "NOVA OS Project" \
   --iso-volume "NOVA_DESKTOP"
 sudo lb build
 ```
 
-The ISO is produced in `nova-live/live-image-amd64.hybrid.iso`.
+The expected output is `nova-live/live-image-amd64.hybrid.iso`. GitHub Actions is configured to build the ISO and upload it as the `nova-desktop-iso` artifact when the build succeeds.
 
-## Included working desktop
+## Safe testing
 
-- XFCE desktop with movable/resizable windows, panel, application menu and window manager
-- File manager, terminal, settings manager and screenshot utility
-- Network manager and Wi-Fi UI
-- Audio controls and PipeWire
-- Chromium and Firefox ESR browsers
-- Disk tools, Git and common desktop utilities
-- NOVA-branded wallpaper and desktop shortcuts
+1. Test the ISO in a virtual machine first.
+2. For USB testing, use a tool such as Rufus or balenaEtcher to write the ISO to a USB drive. Writing it erases that USB drive.
+3. Boot from the USB and choose the live desktop to test hardware before installing anything.
+4. Do not repartition or install to the internal Windows drive unless you deliberately choose to do so and have backed up important files.
 
-## Important
+## Honest project status
 
-This edition uses Debian's Linux kernel and hardware support. It is not the same as the experimental Rust kernel. It is the practical route to a desktop that behaves like a real OS on the HP laptop. Test the ISO in a virtual machine first; writing an ISO to USB erases the selected USB drive. Do not install to or repartition the internal Windows drive unless you intentionally choose to do so.
+This is a Debian-based NOVA Desktop distribution, not yet a wholly independent kernel/OS implementation. The bare-metal Rust kernel remains a separate experimental project. A truly independent kernel with its own drivers, filesystem, networking stack, security model, graphics stack, and application ecosystem is a much larger ongoing engineering project.
