@@ -3,6 +3,7 @@
 
 mod memory;
 mod boot_memory;
+mod interrupts;
 
 use core::panic::PanicInfo;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
@@ -21,6 +22,8 @@ static REQUESTS_END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 pub extern "C" fn _start() -> ! {
     serial_init();
     serial_write_str("\r\nNOVA OS: kernel entered.\r\n");
+    interrupts::initialize();
+    serial_write_str("NOVA OS: kernel-owned IDT installed; hardware interrupts remain disabled.\r\n");
     match boot_memory::initialize() {
         Ok(stats) => {
             serial_write_str("NOVA OS: Limine memory map integrated. Entries: ");
@@ -303,7 +306,7 @@ fn serial_init() {
         outb(0x3F9, 0x00); outb(0x3FB, 0x03); outb(0x3FA, 0xC7); outb(0x3FC, 0x0B);
     }
 }
-fn serial_write_str(value: &str) { for byte in value.bytes() { serial_write_byte(byte); } }
+pub(crate) fn serial_write_str(value: &str) { for byte in value.bytes() { serial_write_byte(byte); } }
 
 fn serial_write_num(mut value: usize) {
     let mut digits = [0u8; 20];
