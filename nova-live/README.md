@@ -18,7 +18,6 @@ sudo lb config \
   --binary-images iso-hybrid \
   --debian-installer live \
   --archive-areas "main contrib non-free non-free-firmware" \
-  --bootloaders "grub-efi grub-pc" \
   --iso-application "NOVA OS Desktop" \
   --iso-publisher "NOVA OS Project" \
   --iso-volume "NOVA_DESKTOP"
