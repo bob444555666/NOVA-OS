@@ -27,7 +27,7 @@ LIMINE_TOOL="$(find "$LIMINE_ROOT" -type f -name limine -print -quit)"
 [[ -n "$LIMINE_TOOL" ]] || { echo "Could not find the Limine host tool in the downloaded archive." >&2; exit 1; }
 LIMINE_DIR="$(dirname "$LIMINE_TOOL")"
 
-for file in limine-bios.sys limine-bios-cd.bin limine-uefi-cd.bin; do
+for file in limine limine-bios.sys limine-bios-cd.bin limine-uefi-cd.bin BOOTX64.EFI; do
   [[ -f "$LIMINE_DIR/$file" ]] || { echo "Missing Limine boot file: $file" >&2; exit 1; }
 done
 
@@ -36,12 +36,13 @@ cargo build --release --target x86_64-unknown-none
 
 STAGING="$BUILD/iso-root"
 rm -rf "$STAGING"
-mkdir -p "$STAGING/boot"
+mkdir -p "$STAGING/boot" "$STAGING/EFI/BOOT"
 cp "$ROOT/limine.conf" "$STAGING/limine.conf"
 cp "$ROOT/target/x86_64-unknown-none/release/nova-kernel" "$STAGING/boot/nova-kernel"
 cp "$LIMINE_DIR/limine-bios.sys" "$STAGING/limine-bios.sys"
 cp "$LIMINE_DIR/limine-bios-cd.bin" "$STAGING/limine-bios-cd.bin"
 cp "$LIMINE_DIR/limine-uefi-cd.bin" "$STAGING/limine-uefi-cd.bin"
+cp "$LIMINE_DIR/BOOTX64.EFI" "$STAGING/EFI/BOOT/BOOTX64.EFI"
 
 xorriso -as mkisofs \
   -R -r -J \
