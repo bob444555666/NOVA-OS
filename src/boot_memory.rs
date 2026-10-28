@@ -5,7 +5,6 @@
 //! bootloader structures, reserved ranges and MMIO) remains unavailable.
 
 use crate::memory::{FrameAllocator, PAGE_SIZE};
-use core::ffi::c_void;
 
 const COMMON_MAGIC_0: u64 = 0xc7b1_dd30_df4c_8b88;
 const COMMON_MAGIC_1: u64 = 0x0a82_e883_a194_f07b;
